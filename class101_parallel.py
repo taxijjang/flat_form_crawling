@@ -1,7 +1,6 @@
 # 내장 라이브러리
 import re
 import os
-import multiprocessing
 from typing import *
 from multiprocessing import Pool
 from multiprocessing import Manager
@@ -14,6 +13,7 @@ from selenium.common.exceptions import TimeoutException
 
 manager = Manager()
 total_class_urls = manager.list()
+total_video_count = manager.list()
 
 
 def browser():
@@ -21,12 +21,7 @@ def browser():
     return driver
 
 
-def append_class_url(class_url):
-    total_class_urls.append(class_url)
-
-
-def get_class_urls():
-    base_url = 'https://class101.net'
+def class_urls() -> List:
     category_dict = dict(
         드로잉='604f1c9756c3676f1ed00304',
         공예='604f1c9756c3676f1ed00317',
@@ -43,15 +38,14 @@ def get_class_urls():
         글쓰기='604f1c9756c3676f1ed003c4',
         언어='604f1c9756c3676f1ed003cd',
         아동교육='604f1c9756c3676f1ed003d6',
-        DIY키트='605b0d1be0b389a99bf69fce',
     )
 
     return list(category_dict.values())
 
 
-def get_class_url_list(class_url) -> List:
+def get_class_urls(class_url: List) -> None:
     global total_class_urls
-    base_url = 'https://class101.net'
+    base_url: str = 'https://class101.net'
     driver = browser()
     page = 1
     while True:
@@ -71,39 +65,46 @@ def get_class_url_list(class_url) -> List:
         page += 1
 
 
-def get_video_count_in_product(base_url, class_url_list):
+def get_video_counts(class_url: str) -> None:
+    global total_video_count
+    base_url: str = 'https://class101.net'
     driver = browser()
-    total_video_count = 0
-    for class_url in class_url_list:
-        target_url = base_url + class_url
-        driver.get(target_url)
+    target_url = base_url + class_url
+    driver.get(target_url)
 
-        html = driver.page_source
-        try:
-            if html:
-                print(target_url)
-                video_count_data = ''.join(re.findall(r'\d+개 세부강의', str(html)))
-                video_count = int(re.findall(r'\d+', video_count_data).pop())
-                total_video_count += video_count
-                print(video_count)
-        except Exception:
-            print("ASDF")
-    return total_video_count
+    html = driver.page_source
+    try:
+        if html:
+            video_count_data = ''.join(re.findall(r'\d+개 세부강의', str(html)))
+            video_count = re.findall(r'\d+', video_count_data)
+            total_video_count.extend(video_count)
+            print(os.getpid(), target_url, video_count)
+    except Exception as ex:
+        print(ex)
+        driver.close()
+        total_video_count.append(0)
+    driver.close()
 
-def test_func(link):
-    driver = browser()
-    driver.get('https://class101.net')
-    print(os.getpid())
+
+@property
+def sum_video_count():
+    return sum(map(int, total_video_count))
+
+
+def main():
+    class_pool = Pool(processes=os.cpu_count() // 2)
+    class_pool.map(get_class_urls, class_urls())
+
+    class_pool.close()
+    class_pool.join()
+
+    video_pool = Pool(processes=os.cpu_count() // 2)
+    video_pool.map(get_video_counts, total_class_urls)
+
+    video_pool.close()
+    video_pool.join()
+
 
 if __name__ == "__main__":
-    pool = Pool(processes=6)
-    # for class_url in get_class_urls():
-    #     pool.apply_async(get_class_url_list, args=(class_url,), callback=append_class_url)
-    pool.map(get_class_url_list, get_class_urls())
-    # class_urls = get_class_urls()
-    # for i in range(0, len(get_class_urls())):
-    #     pool.apply_async(test_func, args={class_urls[i]})
-
-    pool.close()
-    pool.join()
-    print(total_class_urls)
+    main()
+    print(total_class_urls, len(sum_video_count))
