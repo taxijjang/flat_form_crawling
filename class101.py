@@ -14,7 +14,6 @@ from selenium.common.exceptions import TimeoutException
 
 
 NUM_CORES = multiprocessing.cpu_count()
-SCROLL_PAUSE_SEC = 1
 
 driver = webdriver.Chrome(executable_path='./chromedriver')
 driver.implicitly_wait(5)
