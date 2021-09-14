@@ -13,7 +13,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 
 manager = Manager()
-total_class_urls = manager.list()
+total_course_urls = manager.list()
 total_video_count = manager.list()
 
 
@@ -45,7 +45,7 @@ def category_urls() -> List:
 
 
 def get_class_urls(class_url: List) -> None:
-    global total_class_urls
+    global total_course_urls
     base_url: str = 'https://class101.net'
     driver = browser()
     page = 1
@@ -63,7 +63,7 @@ def get_class_urls(class_url: List) -> None:
         if html:
             class_path = set(re.findall(r'/products/\w{20}', str(html)))
             print(os.getpid(), class_url, len(class_path), page)
-            total_class_urls.extend(class_path)
+            total_course_urls.extend(class_path)
         page += 1
 
 
@@ -99,7 +99,7 @@ def main() -> None:
     class_pool.join()
 
     video_pool = Pool(processes=os.cpu_count() // 2)
-    video_pool.map(get_video_counts, total_class_urls)
+    video_pool.map(get_video_counts, total_course_urls)
 
     video_pool.close()
     video_pool.join()
@@ -107,4 +107,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-    print(f'클래스 갯수: {len(total_class_urls)}, 동영상 갯수: {sum_video_count()}')
+    print(f'클래스 갯수: {len(total_course_urls)}, 동영상 갯수: {sum_video_count()}')
