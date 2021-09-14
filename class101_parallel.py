@@ -1,6 +1,7 @@
 # 내장 라이브러리
 import re
 import os
+import logging
 from typing import *
 from multiprocessing import Pool
 from multiprocessing import Manager
@@ -21,7 +22,7 @@ def browser():
     return driver
 
 
-def class_urls() -> List:
+def category_urls() -> List:
     category_dict = dict(
         드로잉='604f1c9756c3676f1ed00304',
         공예='604f1c9756c3676f1ed00317',
@@ -55,8 +56,9 @@ def get_class_urls(class_url: List) -> None:
             WebDriverWait(driver, 20).until(
                 EC.presence_of_element_located((By.CLASS_NAME, 'infinite-scroll-component')))
         except TimeoutException:
+            logging.info("해당 page에 데이터가 없다.")
             driver.close()
-            break
+            return None
         html = driver.page_source
         if html:
             class_path = set(re.findall(r'/products/\w{20}', str(html)))
@@ -67,7 +69,7 @@ def get_class_urls(class_url: List) -> None:
 
 def get_video_counts(class_url: str) -> None:
     global total_video_count
-    base_url: str = 'https://class101.net'
+    base_url = 'https://class101.net'
     driver = browser()
     target_url = base_url + class_url
     driver.get(target_url)
@@ -80,20 +82,18 @@ def get_video_counts(class_url: str) -> None:
             total_video_count.extend(video_count)
             print(os.getpid(), target_url, video_count)
     except Exception as ex:
-        print(ex)
-        driver.close()
+        logging.info("해당 클래스에서 강의 정보를 찾지 못하여 비디오 개수 0으로 추가.")
         total_video_count.append(0)
     driver.close()
 
 
-@property
-def sum_video_count():
+def sum_video_count() -> int:
     return sum(map(int, total_video_count))
 
 
-def main():
+def main() -> None:
     class_pool = Pool(processes=os.cpu_count() // 2)
-    class_pool.map(get_class_urls, class_urls())
+    class_pool.map(get_class_urls, category_urls())
 
     class_pool.close()
     class_pool.join()
@@ -107,4 +107,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    print(total_class_urls, len(sum_video_count))
+    print(f'클래스 갯수: {len(total_class_urls)}, 동영상 갯수: {sum_video_count()}')
