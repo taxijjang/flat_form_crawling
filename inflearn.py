@@ -79,13 +79,15 @@ def sum_video_count() -> int:
 def main() -> None:
     total_course_urls = get_course_urls()
 
-    video_pool = Pool(processes=os.cpu_count() // 2)
+    # video_pool = Pool(processes=os.cpu_count() // 2)
+    video_pool = Pool(processes=2)
     video_pool.map(get_video_counts, total_course_urls)
 
     video_pool.close()
     video_pool.join()
 
     print(f'클래스 갯수: {len(total_course_urls)}, 동영상 갯수: {sum_video_count()}')
+    # 클래스 갯수: 1155, 동영상 갯수: 40318
 
 
 if __name__ == "__main__":
