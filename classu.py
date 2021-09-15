@@ -1,110 +1,51 @@
 # 내장 라이브러리
-import re
-import os
-import logging
-from typing import *
-from multiprocessing import Pool
-from multiprocessing import Manager
+import json
 # 외부 라이브러리
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
+import requests
 
-manager = Manager()
-total_class_urls = manager.list()
-total_video_count = manager.list()
+BASE_URL = 'https://api2.enfit.net/api/v3/class_search/'
 
 
-def browser():
-    driver = webdriver.Chrome(executable_path='./chromedriver')
-    return driver
+def get_course_and_video_count():
+    total_course_count, total_video_count = 0, 0
 
+    headers = {
+        # jwt token
+        'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.'
+                         'eyJpc3MiOiJodHRwczovL3d3dy5jbGFzc3UuY28ua3Iv'
+                         'Y2xhc3Mvc2VhcmNoIiwiaWF0IjoxNjMxNjczMjYyLCJl'
+                         'eHAiOjE2MzI4ODI4NjIsIm5iZiI6MTYzMTY3MzI2Miwi'
+                         'anRpIjoibm56SGx6RVFuT1dTVkROSyIsInN1YiI6MTEw'
+                         'MTYsInBydiI6Ijk2MmExNGQ0OGM0MjllM2E2YWFiMzYx'
+                         'MGMwMzUyYmZiYjQ1ZWZjNTgifQ.9poC61l7AwsI5qyTF'
+                         'ZmKjwJU47kiAeRz1rpuaFkQP7U'
+    }
 
-def category_urls() -> List:
-    category_dict = dict(
-        드로잉='604f1c9756c3676f1ed00304',
-        공예='604f1c9756c3676f1ed00317',
-        요리음료='604f1c9756c3676f1ed0034f',
-        베이킹디저트='604f1c9756c3676f1ed0035e',
-        음악='604f1c9756c3676f1ed00365',
-        운동='604f1c9756c3676f1ed00373',
-        라이프='604f1c9756c3676f1ed0037e',
-        사진영상='604f1c9756c3676f1ed00389',
-        수익창출='604f1c9756c3676f1ed003b2',
-        디자인='604f1c9756c3676f1ed0038e',
-        개발='604f1c9756c3676f1ed00397',
-        직무교육='604f1c9756c3676f1ed003a2',
-        글쓰기='604f1c9756c3676f1ed003c4',
-        언어='604f1c9756c3676f1ed003cd',
-        아동교육='604f1c9756c3676f1ed003d6',
-    )
-
-    return list(category_dict.values())
-
-
-def get_class_urls(class_url: List) -> None:
-    global total_class_urls
-    base_url: str = 'https://class101.net'
-    driver = browser()
     page = 1
     while True:
-        target_url = base_url + f'/search?category={class_url}&page={page}&sort=recommendOrder&state=sales'
-        driver.get(target_url)
-        try:
-            WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.CLASS_NAME, 'infinite-scroll-component')))
-        except TimeoutException:
-            logging.info("해당 page에 데이터가 없다.")
-            driver.close()
-            return None
-        html = driver.page_source
-        if html:
-            class_path = set(re.findall(r'/products/\w{20}', str(html)))
-            print(os.getpid(), class_url, len(class_path), page)
-            total_class_urls.extend(class_path)
+        target_url = f"{BASE_URL}{page}"
+        req = requests.post(target_url, headers=headers)
+        response_data = json.loads(req.text)
+        results = response_data.get('results')
+        total_page = int(results.get('total_page'))
+        if total_page < page:
+            return total_course_count, total_video_count
+
+        courses = results.get('list')
+        total_course_count += len(courses)
+
+        for course in courses:
+            total_video_count += course.get('curriculum_cnt')
+
+        print(page, total_course_count, total_video_count)
         page += 1
 
 
-def get_video_counts(class_url: str) -> None:
-    global total_video_count
-    base_url = 'https://class101.net'
-    driver = browser()
-    target_url = base_url + class_url
-    driver.get(target_url)
-
-    html = driver.page_source
-    try:
-        if html:
-            video_count_data = ''.join(re.findall(r'\d+개 세부강의', str(html)))
-            video_count = re.findall(r'\d+', video_count_data)
-            total_video_count.extend(video_count)
-            print(os.getpid(), target_url, video_count)
-    except Exception as ex:
-        logging.info("해당 클래스에서 강의 정보를 찾지 못하여 비디오 개수 0으로 추가.")
-        total_video_count.append(0)
-    driver.close()
-
-
-def sum_video_count() -> int:
-    return sum(map(int, total_video_count))
-
-
-def main() -> None:
-    class_pool = Pool(processes=os.cpu_count() // 2)
-    class_pool.map(get_class_urls, category_urls())
-
-    class_pool.close()
-    class_pool.join()
-
-    video_pool = Pool(processes=os.cpu_count() // 2)
-    video_pool.map(get_video_counts, total_class_urls)
-
-    video_pool.close()
-    video_pool.join()
+def main():
+    course_count, video_count = get_course_and_video_count()
+    print(f"클래스 갯수: {course_count}, 동영상 갯수: {video_count}")
 
 
 if __name__ == "__main__":
     main()
-    print(f'클래스 갯수: {len(total_class_urls)}, 동영상 갯수: {sum_video_count()}')
+    # print(f'클래스 갯수: {len(total_class_urls)}, 동영상 갯수: {sum_video_count()}')
