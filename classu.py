@@ -41,7 +41,7 @@ def get_course_and_video_count():
         page += 1
 
 
-def main() -> None:
+def main():
     course_count, video_count = get_course_and_video_count()
     print(f"클래스 갯수: {course_count}, 동영상 갯수: {video_count}")
 
