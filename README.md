@@ -40,7 +40,7 @@ Tags: completed
 
 - 클래스유
     - 21.09.15
-    - 클래스유에서 프론트 단에서 사용하는 API ([https://api2.enfit.net/api/v3/class_search/1](https://api2.enfit.net/api/v3/class_search/1))를 사용하여 조사
+    - 클래스유에서 프론트 단에서 사용하는 API를 사용하여 조사
 
 - 탈잉
     - 21.09.15
